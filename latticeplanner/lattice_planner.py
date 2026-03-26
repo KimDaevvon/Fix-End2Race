@@ -202,7 +202,10 @@ class LatticePlanner:
         best_idx = self.selection_func(all_costs)
         return best_idx
 
-    def plan(self, pose_x, pose_y, pose_theta, opp_poses, velocity, waypoints=None):
+    def plan(self, pose_x, pose_y, pose_theta, opp_poses, velocity, waypoints=None, debug=False):
+        # Daewon
+        # Add debug flag to print cost for ego planner
+
         self.step += 1
         if waypoints is None:
             waypoints = self.waypoints
@@ -241,18 +244,19 @@ class LatticePlanner:
 
         # Daewon
         # For Debugging
-        for k in self.step_all_cost.keys():
-            cost_array = self.step_all_cost[k]
-            if k in ["get_map_collision", "abs_v_cost"]:
-                continue
-            # 1. 1차원 배열인 경우 (경로에만 의존)
-            if cost_array.ndim == 1:
-                print(f"{k} : {cost_array[row_idx]:.4f}", end=" | ", flush=False)
-                
-            # 2. 2차원 배열인 경우 (경로와 속도 모두 의존)
-            elif cost_array.ndim == 2:
-                print(f"{k} : {cost_array[row_idx, col_idx]:.4f}", end=" | ", flush=False)
-        print("", flush=True)
+        if debug:
+            for k in self.step_all_cost.keys():
+                cost_array = self.step_all_cost[k]
+                if k in ["get_map_collision", "abs_v_cost"]:
+                    continue
+                # 1. 1차원 배열인 경우 (경로에만 의존)
+                if cost_array.ndim == 1:
+                    print(f"{k} : {cost_array[row_idx]:.4f}", end=" | ", flush=False)
+                    
+                # 2. 2차원 배열인 경우 (경로와 속도 모두 의존)
+                elif cost_array.ndim == 2:
+                    print(f"{k} : {cost_array[row_idx, col_idx]:.4f}", end=" | ", flush=False)
+            print("", flush=True)
 
         self.best_traj = all_traj[row_idx]
         self.best_traj_ref_v = self.best_traj[-1, 2]

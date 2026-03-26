@@ -60,7 +60,7 @@ def setup_ego_planner(map_name, raceline_file, config_path='latticeplanner/latti
         0.05,   # Follow optimization cost     
         2.0,    # Absolute speed reward
         0.25,    # Curvature speed punishment
-        20.0     # Opponent collision cost (will be ignored if no opponents)
+        300.0     # Opponent collision cost (will be ignored if no opponents)
     ])
     ego_planner.set_parameters({'cost_weights': ego_cost_weights, 'traj_v_scale': 1.0})
     
@@ -223,10 +223,10 @@ def run_lattice_planner(args):
     while not done and laptime < sim_duration:
         # Planning phase
         opp_pose = obsDict2oppoArray(obs, 0)
-        ego_best_traj = ego_planner.plan(obs['poses_x'][0], obs['poses_y'][0], obs['poses_theta'][0], opp_pose, obs['linear_vels_x'][0])
+        ego_best_traj = ego_planner.plan(obs['poses_x'][0], obs['poses_y'][0], obs['poses_theta'][0], opp_pose, obs['linear_vels_x'][0], debug=True)
         
         opp_pose = obsDict2oppoArray(obs, 1)
-        opp_best_traj = opp_planner.plan(obs['poses_x'][1], obs['poses_y'][1], obs['poses_theta'][1], opp_pose, obs['linear_vels_x'][1])
+        opp_best_traj = opp_planner.plan(obs['poses_x'][1], obs['poses_y'][1], obs['poses_theta'][1], opp_pose, obs['linear_vels_x'][1], debug=False)
         
         # Tracking loop
         tracker_count = 0
