@@ -134,7 +134,7 @@ def prep_track(reftrack_imp: np.ndarray,
     return reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_interp
 
 
-def reorder_vertex(image, lane):
+def reorder_vertex(image, lane, total_lane_image): # Daewon
     """Reorder vertices to form a continuous path."""
     path_img = np.zeros_like(image)
     for idx in range(len(lane)):
@@ -151,7 +151,12 @@ def reorder_vertex(image, lane):
         iter_cnt += 1
     path_img = cv2.ximgproc.thinning(path_img)
     curr_contours, curr_hierarchy = cv2.findContours(path_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    return np.squeeze(curr_contours[0])
+    
+    # Daewon
+    if total_lane_image is not None:
+        total_lane_image = cv2.add(total_lane_image, path_img)
+
+    return np.squeeze(curr_contours[0]) ,total_lane_image # Daewon
 
 
 def transform_coords(path, height, s, tx, ty):
@@ -243,10 +248,14 @@ def generate_lanes(args, map_dir):
     # Calculate lanes
     lanes = []
     lane_names = []
+
+    # Daewon
+    total_lane_image = np.array(output_img)
+
     for idx in range(len(lane_ratios)):
         valid_ratio = (np.abs(valid_pts[:, -1] - lane_ratios[idx]) < lane_ratios[idx] / 10)
         lane = valid_pts[valid_ratio, 0:2].astype(int)
-        lane = reorder_vertex(output_img, lane)
+        lane, total_lane_image = reorder_vertex(output_img, lane, total_lane_image) # Daewon
         if args.clockwise:
             lane = np.flipud(lane)
         
@@ -277,7 +286,7 @@ def generate_lanes(args, map_dir):
         lanes.append(lane)
         lane_names.append(lane_name)
     
-    return lanes, lane_names
+    return lanes, lane_names, ~total_lane_image # Daewon
 
 
 def generate_raceline(lane_data, lane_name, args, module, map_dir):
@@ -428,14 +437,34 @@ def main():
     
     print(f"Generating lanes for {args.map_name}...")
     # Generate lanes
-    lanes, lane_names = generate_lanes(args, map_dir)
-    
+    lanes, lane_names, total_lane_image = generate_lanes(args, map_dir) # Daewon
+
+    #Daewon
+    # Read map parameters
+    yaml_file = os.path.join(map_dir, args.map_name + "_map.yaml")
+    with open(yaml_file, 'r') as stream:
+        parsed_yaml = yaml.safe_load(stream)
+    scale = parsed_yaml["resolution"]
+    offset_x = parsed_yaml["origin"][0]
+    offset_y = parsed_yaml["origin"][1]
+
+    # Daewon
+    race_lines_image = cv2.cvtColor(total_lane_image, cv2.COLOR_GRAY2BGR)
+
     # Generate raceline for each lane
     for idx, (lane, lane_name) in enumerate(zip(lanes, lane_names)):
         print(f"\nProcessing {lane_name}...")
         
         # Generate raceline trajectory
         trajectory, laptime = generate_raceline(lane, lane_name, args, module, map_dir)
+
+        # Daewon
+        xy_m = trajectory[:, 1:3]
+        uv = (xy_m - np.array([offset_x, offset_y])) / scale
+        uv[:, 1] = race_lines_image.shape[0] - uv[:, 1]
+        pts = np.round(uv).astype(np.int32).reshape(-1, 1, 2)
+        cv2.polylines(race_lines_image, [pts], isClosed=True, color=(255, 0, 0), thickness=1)
+
         # Use unified naming: raceline0, raceline1, raceline2, etc.
         export_path = os.path.join(map_dir, f"raceline{idx}.csv")
         
@@ -445,6 +474,9 @@ def main():
         print(f"  Estimated laptime: {laptime:.2f}s")
         print(f"  Trajectory exported to: {export_path}")
 
+    # Daewon
+    cv2.imshow("race_lines", cv2.resize(race_lines_image, (1000, 1000)))
+    cv2.waitKey(0)
 
 if __name__ == "__main__":
     main()

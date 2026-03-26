@@ -18,7 +18,7 @@ def convert_to_greyscale(input_path, output_path):
     print(f"Greyscale image saved to {output_path}")
 
 # Example usage
-input_image_path = "Austin/Untitled Diagram.drawio.png"
-output_image_path = "Austin/Austin_map_block.png"
+input_image_path = "f1tenth_racetracks/Simple/Simple_map.png"
+output_image_path = "f1tenth_racetracks/Simple/Simple_map_gray.png"
 convert_to_greyscale(input_image_path, output_image_path)
 

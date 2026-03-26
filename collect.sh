@@ -3,7 +3,7 @@
 # Parameters (converted from argparse defaults)
 WORKERS=4
 RENDER=true
-MAP_NAME="Austin"
+MAP_NAME="Simple"
 EGO_RACELINE="raceline1"
 OPP_RACELINES=("raceline0" "raceline1" "raceline2")
 OPP_SPEED_SCALES=(0.5 0.6 0.7 0.8)

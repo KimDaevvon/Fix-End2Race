@@ -178,6 +178,8 @@ class LatticePlanner:
         all_traj_v = all_traj[:, -1, 2]  # (n, )
         traj_v_lattice = np.repeat(all_traj_v, k).reshape(n, k) * self.v_lattice_span * self.traj_v_scale  # (n, k)
         abs_v_cost = -cost_weights[-3] * np.log(1 + traj_v_lattice) + cost_weights[-2] * (mean_k_lattice - all_traj_min_mean_k) * traj_v_lattice
+        self.step_all_cost['velocity_cost'] = -cost_weights[-3] * np.log(1 + traj_v_lattice) # Daewon
+        self.step_all_cost['curvature_cost'] = cost_weights[-2] * (mean_k_lattice - all_traj_min_mean_k) * traj_v_lattice # Daewon
         self.step_all_cost['abs_v_cost'] = abs_v_cost
 
         ## collision cost
@@ -234,8 +236,23 @@ class LatticePlanner:
         self.all_costs = all_costs
 
         best_traj_idx = self.select(all_costs)
-        row_idx, col_idx = divmod(best_traj_idx, self.v_lattice_num)
         self.best_traj_idx = best_traj_idx
+        row_idx, col_idx = divmod(best_traj_idx, self.v_lattice_num)
+
+        # Daewon
+        # For Debugging
+        for k in self.step_all_cost.keys():
+            cost_array = self.step_all_cost[k]
+            if k in ["get_map_collision", "abs_v_cost"]:
+                continue
+            # 1. 1차원 배열인 경우 (경로에만 의존)
+            if cost_array.ndim == 1:
+                print(f"{k} : {cost_array[row_idx]:.4f}", end=" | ", flush=False)
+                
+            # 2. 2차원 배열인 경우 (경로와 속도 모두 의존)
+            elif cost_array.ndim == 2:
+                print(f"{k} : {cost_array[row_idx, col_idx]:.4f}", end=" | ", flush=False)
+        print("", flush=True)
 
         self.best_traj = all_traj[row_idx]
         self.best_traj_ref_v = self.best_traj[-1, 2]
@@ -352,7 +369,16 @@ def get_obstacle_collision_with_v(traj, traj_clothoid, v_lattice, opp_poses, pre
     n, m, _ = traj.shape
     k = v_lattice.shape[1]
     cost = np.zeros(n)
-    traj_xyt = traj[:, :, :3]
+
+    # LEGACY
+    # traj_xyt = traj[:, :, :3]
+
+    # Daewon
+    traj_xyt = np.empty((traj.shape[0], traj.shape[1], 3), dtype=traj.dtype)
+    traj_xyt[:, :, 0] = traj[:, :, 0]
+    traj_xyt[:, :, 1] = traj[:, :, 1]
+    traj_xyt[:, :, 2] = traj[:, :, 3]
+
     for i, tr in enumerate(traj_xyt):
         close_p_idx = x2y_distances_argmin(np.ascontiguousarray(opp_poses[:, :2]), np.ascontiguousarray(tr[:, :2]))
         for opp_pose, p_idx in zip(opp_poses, close_p_idx):
@@ -360,26 +386,34 @@ def get_obstacle_collision_with_v(traj, traj_clothoid, v_lattice, opp_poses, pre
             p_box = get_vertices(tr[int(p_idx)], length + safey_length_distance, width + safey_width_distance)
             if collision(opp_box, p_box):
                 cost[i] = max_cost - p_idx * (max_cost - min_cost) / m
-    if np.sum(prev_oppo_pose) == 0:
-        cost = np.repeat(cost, k).reshape(n, k)
-        return cost
-    else:
-        cost = np.repeat(cost, k).reshape(n, k)
-        # calculate opp pose, assume only one opponent
-        oppo_pose = opp_poses[0][:2]
-        prev_opp_pose = prev_oppo_pose[0]
-        opp_v = (oppo_pose - prev_opp_pose) / float(dt)  # (2, 1)
 
-        traj_heading = traj[:, -1, 3]  # (n, )
-        traj_heading_vec = np.vstack((np.cos(traj_heading), np.sin(traj_heading))).T  # (n, 2)
-        opp_v_proj = np.dot(traj_heading_vec, opp_v.reshape(2, 1))  # (n, 1)
-        opp_v_proj = np.repeat(opp_v_proj, k).reshape(n, k)  # (n, k)
-        v_diff = v_lattice - opp_v_proj
-        cost = cost * v_diff
-        for i in range(n):
-            for j in range(k):
-                if cost[i][j] < 0:
-                    cost[i][j] = 1.0
-                elif cost[i][j] < 1.2:
-                    cost[i][j] = 1.2
+    ### Daewon
+    cost = np.repeat(cost, k).reshape(n, k)
+    # LEGACY
+    # Removed relative-velocity scaling because when the relative velocity is near zero,
+    # the cost becomes too small. Use only box-collision cost.
+    # if np.sum(prev_oppo_pose) == 0:
+    #     cost = np.repeat(cost, k).reshape(n, k)
+    #     return cost
+    # else:
+    #     cost = np.repeat(cost, k).reshape(n, k)
+    #     # calculate opp pose, assume only one opponent
+    #     oppo_pose = opp_poses[0][:2]
+    #     prev_opp_pose = prev_oppo_pose[0]
+    #     opp_v = (oppo_pose - prev_opp_pose) / float(dt)  # (2, 1)
+
+    #     traj_heading = traj[:, -1, 3]  # (n, )
+    #     traj_heading_vec = np.vstack((np.cos(traj_heading), np.sin(traj_heading))).T  # (n, 2)
+    #     opp_v_proj = np.dot(traj_heading_vec, opp_v.reshape(2, 1))  # (n, 1)
+    #     opp_v_proj = np.repeat(opp_v_proj, k).reshape(n, k)  # (n, k)
+    #     v_diff = v_lattice - opp_v_proj
+    #     cost = cost * v_diff
+    #     for i in range(n):
+    #         for j in range(k):
+    #             if cost[i][j] < 0:
+    #                 cost[i][j] = 1.0
+    #             elif cost[i][j] < 1.2:
+    #                 cost[i][j] = 1.2
+    ###
+
     return cost

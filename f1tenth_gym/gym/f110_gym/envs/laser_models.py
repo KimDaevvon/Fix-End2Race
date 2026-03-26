@@ -400,13 +400,15 @@ class ScanSimulator2D(object):
         map_img_path = os.path.splitext(map_path)[0] + map_ext
         self.map_img = np.array(Image.open(map_img_path).transpose(Image.FLIP_TOP_BOTTOM))
         self.map_img = self.map_img.astype(np.float64)
+        if len(self.map_img.shape) != 2:
+            raise ValueError("Map image is not grayscale (H,W): ", self.map_img.shape)
 
         # grayscale -> binary
         self.map_img[self.map_img <= 128.] = 0.
         self.map_img[self.map_img > 128.] = 255.
 
         self.map_height = self.map_img.shape[0]
-        self.map_width = self.map_img.shape[1]
+        self.map_width = self.map_img.shape[1]  
 
         # load map yaml
         with open(map_path, 'r') as yaml_stream:

@@ -1,7 +1,7 @@
 # Lattice Planner Parameters
 lh_grid_lb: 0.0
 lh_grid_ub: 1.0
-traj_points: 15
+traj_points: 20
 traj_v_scale: 1.0
 traj_v_span_min: 0.1
 traj_v_span_max: 1.0
@@ -12,7 +12,7 @@ get_follow_optim_cost: true
 get_map_collision: true
 get_similarity_cost: true
 weights_num: 4
-ittc_thres: 2.0
+ittc_thres: 3.0
 scan_num: 144
 
 # Parameter Configuration
@@ -34,7 +34,7 @@ tracker_steps: 10
 vel_scale: 1.0
 
 # Pure Pursuit Specific Parameters
-minL: 0.5
+minL: 0.2
 maxL: 1.8
 Lscale: 8.0
 minP: 0.5
