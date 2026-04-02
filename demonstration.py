@@ -57,9 +57,9 @@ def setup_ego_planner(map_name, raceline_file, config_path='latticeplanner/latti
     
     # Use SAME weights regardless of single/multi-agent
     ego_cost_weights = np.array([
-        0.05,   # Follow optimization cost     
-        2.0,    # Absolute speed reward
-        0.25,    # Curvature speed punishment
+        0.01,   # Follow optimization cost     
+        10.0,    # Absolute speed reward
+        0.05,    # Curvature speed punishment
         300.0     # Opponent collision cost (will be ignored if no opponents)
     ])
     ego_planner.set_parameters({'cost_weights': ego_cost_weights, 'traj_v_scale': 1.0})

@@ -1,6 +1,6 @@
 # Lattice Planner Parameters
-lh_grid_lb: 0.0
-lh_grid_ub: 1.0
+lh_grid_lb: 0.5
+lh_grid_ub: 5.0
 traj_points: 20
 traj_v_scale: 1.0
 traj_v_span_min: 0.1
