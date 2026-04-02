@@ -60,7 +60,7 @@ class LatticePlanner:
         self.best_traj_ref_v = 0.0
         self.best_traj_idx = 0
         self.prev_traj_local = np.zeros((self.traj_points, 2))
-        self.prev_opp_pose = np.array([0, 0])
+        self.prev_opp_pose = np.zeros((1, 2))
         self.goal_grid = None
         self.state_i = None
         self.state_t = None
@@ -367,57 +367,74 @@ def get_map_collision(traj, traj_clothoid, opp_poses=None, ego_pose=None, prev_t
 def get_obstacle_collision_with_v(traj, traj_clothoid, v_lattice, opp_poses, prev_oppo_pose, dt=None):
     max_cost = 20.0
     min_cost = 10.0
-    width, length = 0.31, 0.58 
-    safey_width_distance = 0.15
-    safey_length_distance = 0.2
+    width, length = 0.31, 0.58
+    safety_width_distance = 0.15
+    safety_length_distance = 0.2
     n, m, _ = traj.shape
     k = v_lattice.shape[1]
-    cost = np.zeros(n)
 
-    # LEGACY
-    # traj_xyt = traj[:, :, :3]
-
-    # Daewon
     traj_xyt = np.empty((traj.shape[0], traj.shape[1], 3), dtype=traj.dtype)
     traj_xyt[:, :, 0] = traj[:, :, 0]
     traj_xyt[:, :, 1] = traj[:, :, 1]
     traj_xyt[:, :, 2] = traj[:, :, 3]
 
-    for i, tr in enumerate(traj_xyt):
-        close_p_idx = x2y_distances_argmin(np.ascontiguousarray(opp_poses[:, :2]), np.ascontiguousarray(tr[:, :2]))
-        for opp_pose, p_idx in zip(opp_poses, close_p_idx):
-            opp_box = get_vertices(opp_pose, length + safey_length_distance, width + safey_width_distance)
-            p_box = get_vertices(tr[int(p_idx)], length + safey_length_distance, width + safey_width_distance)
-            if collision(opp_box, p_box):
-                cost[i] = max_cost - p_idx * (max_cost - min_cost) / m
+    # Calculate opponent velocity vectors for future position prediction
+    has_prev = (np.sum(np.abs(prev_oppo_pose)) > 1e-6 and
+                prev_oppo_pose.shape[0] == opp_poses.shape[0])
+    opp_vels = np.zeros((opp_poses.shape[0], 2))
+    if has_prev and dt > 1e-6:
+        for oi in range(opp_poses.shape[0]):
+            opp_vels[oi, 0] = (opp_poses[oi, 0] - prev_oppo_pose[oi, 0]) / dt
+            opp_vels[oi, 1] = (opp_poses[oi, 1] - prev_oppo_pose[oi, 1]) / dt
 
-    ### Daewon
-    cost = np.repeat(cost, k).reshape(n, k)
-    # LEGACY
-    # Removed relative-velocity scaling because when the relative velocity is near zero,
-    # the cost becomes too small. Use only box-collision cost.
-    # if np.sum(prev_oppo_pose) == 0:
-    #     cost = np.repeat(cost, k).reshape(n, k)
-    #     return cost
-    # else:
-    #     cost = np.repeat(cost, k).reshape(n, k)
-    #     # calculate opp pose, assume only one opponent
-    #     oppo_pose = opp_poses[0][:2]
-    #     prev_opp_pose = prev_oppo_pose[0]
-    #     opp_v = (oppo_pose - prev_opp_pose) / float(dt)  # (2, 1)
+    # Calculate arc lengths for each trajectory (for time estimation)
+    traj_arc_lengths = np.zeros((n, m))
+    for i in range(n):
+        arc_len = traj_clothoid[i, 5]  # total arc length of clothoid
+        for j in range(m):
+            traj_arc_lengths[i, j] = arc_len * j / max(m - 1, 1)
 
-    #     traj_heading = traj[:, -1, 3]  # (n, )
-    #     traj_heading_vec = np.vstack((np.cos(traj_heading), np.sin(traj_heading))).T  # (n, 2)
-    #     opp_v_proj = np.dot(traj_heading_vec, opp_v.reshape(2, 1))  # (n, 1)
-    #     opp_v_proj = np.repeat(opp_v_proj, k).reshape(n, k)  # (n, k)
-    #     v_diff = v_lattice - opp_v_proj
-    #     cost = cost * v_diff
-    #     for i in range(n):
-    #         for j in range(k):
-    #             if cost[i][j] < 0:
-    #                 cost[i][j] = 1.0
-    #             elif cost[i][j] < 1.2:
-    #                 cost[i][j] = 1.2
-    ###
+    # Collision cost is now (n, k) because time-to-reach depends on velocity
+    cost = np.zeros((n, k))
+
+    col_length = length + safety_length_distance
+    col_width = width + safety_width_distance
+
+    for i in range(n):
+        tr = traj_xyt[i]  # (m, 3) - x, y, theta for each point
+
+        for ki in range(k):
+            ego_v = v_lattice[i, ki]
+            if ego_v < 0.1:
+                ego_v = 0.1  # avoid division by zero
+
+            max_collision_cost = 0.0
+
+            # Check collision at EVERY trajectory point with predicted opponent position
+            for j in range(m):
+                # Time for ego to reach trajectory point j
+                t_reach = traj_arc_lengths[i, j] / ego_v
+                if t_reach > 0.5:
+                    t_reach = 0.5  # cap to prevent wild extrapolation at low speeds
+
+                ego_point = tr[j]  # (3,) - x, y, theta
+                ego_box = get_vertices(ego_point, col_length, col_width)
+
+                for oi in range(opp_poses.shape[0]):
+                    # Predict opponent position at time t_reach
+                    predicted_opp = np.empty(3)
+                    predicted_opp[0] = opp_poses[oi, 0] + opp_vels[oi, 0] * t_reach
+                    predicted_opp[1] = opp_poses[oi, 1] + opp_vels[oi, 1] * t_reach
+                    predicted_opp[2] = opp_poses[oi, 2]  # assume heading doesn't change much
+
+                    opp_box = get_vertices(predicted_opp, col_length, col_width)
+
+                    if collision(opp_box, ego_box):
+                        # Earlier collision (smaller j) is more dangerous
+                        point_cost = max_cost - j * (max_cost - min_cost) / m
+                        if point_cost > max_collision_cost:
+                            max_collision_cost = point_cost
+
+            cost[i, ki] = max_collision_cost
 
     return cost
