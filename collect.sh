@@ -1,32 +1,22 @@
 #!/bin/bash
 
 # Parameters (converted from argparse defaults)
-WORKERS=4
+WORKERS=14
 RENDER=true
 MAP_NAME="Simple"
-EGO_RACELINE="raceline1"
-OPP_RACELINES=("raceline0" "raceline1" "raceline2")
-OPP_SPEED_SCALES=(0.5 0.6 0.7 0.8)
-INTERVAL_IDX=15
-SIM_DURATION=8.0
+RACELINES=("raceline0" "raceline1" "raceline2")
+OPP_SPEED_SCALES=(0.4 0.5 0.6)
+INTERVAL_IDX=30
+SIM_DURATION=10.0
 NUM_STARTPOINTS=50
-# Generate ego_idx_range
-raceline_path="f1tenth_racetracks/${MAP_NAME}/${EGO_RACELINE}.csv"
-max_waypoints=$(tail -n +3 "$raceline_path" | wc -l)
-ego_idx_range=()
-for ((i=0; i<NUM_STARTPOINTS; i++)); do
-    idx=$((i * (max_waypoints - 1) / (NUM_STARTPOINTS - 1)))
-    ego_idx_range+=($idx)
-done
 
 # Calculate total jobs
-total_jobs=$((${#OPP_RACELINES[@]} * ${#OPP_SPEED_SCALES[@]} * ${#ego_idx_range[@]}))
+total_jobs=$((${#RACELINES[@]} * ${#OPP_SPEED_SCALES[@]} * NUM_STARTPOINTS))
 
 echo "Lattice Planner Batch Data Collection"
 echo "====================================="
 echo "Map: $MAP_NAME"
-echo "Ego raceline: ${EGO_RACELINE}"
-echo "Opponent racelines: ${OPP_RACELINES[*]}"
+echo "Racelines (Ego & Opp): ${RACELINES[*]}"
 echo "Speed scales: ${OPP_SPEED_SCALES[*]}"
 echo "Interval: ${INTERVAL_IDX}"
 echo "Time per run: ${SIM_DURATION}s"
@@ -35,10 +25,20 @@ echo "Total jobs: $total_jobs"
 
 # Generate parameter combinations and run simulations
 
-for opp_raceline in "${OPP_RACELINES[@]}"; do
+for raceline in "${RACELINES[@]}"; do
+    # Generate ego_idx_range for this specific raceline length
+    raceline_path="f1tenth_racetracks/${MAP_NAME}/${raceline}.csv"
+    max_waypoints=$(tail -n +3 "$raceline_path" | wc -l)
+    
+    ego_idx_range=()
+    for ((i=0; i<NUM_STARTPOINTS; i++)); do
+        idx=$((i * (max_waypoints - 1) / (NUM_STARTPOINTS - 1)))
+        ego_idx_range+=($idx)
+    done
+
     for opp_speed in "${OPP_SPEED_SCALES[@]}"; do
         for ego_idx in "${ego_idx_range[@]}"; do
-            cmd="python demonstration.py --map_name $MAP_NAME --raceline $EGO_RACELINE --opp_raceline $opp_raceline --opp_speed_scale $opp_speed --ego_idx $ego_idx --interval_idx $INTERVAL_IDX --sim_duration $SIM_DURATION"
+            cmd="python demonstration.py --map_name $MAP_NAME --raceline $raceline --opp_raceline $raceline --opp_speed_scale $opp_speed --ego_idx $ego_idx --interval_idx $INTERVAL_IDX --sim_duration $SIM_DURATION"
 
             if [ "$RENDER" = true ]; then
                 cmd="$cmd --render"
