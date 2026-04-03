@@ -223,7 +223,7 @@ def run_lattice_planner(args):
     while not done and laptime < sim_duration:
         # Planning phase
         opp_pose = obsDict2oppoArray(obs, 0)
-        ego_best_traj = ego_planner.plan(obs['poses_x'][0], obs['poses_y'][0], obs['poses_theta'][0], opp_pose, obs['linear_vels_x'][0], debug=True)
+        ego_best_traj = ego_planner.plan(obs['poses_x'][0], obs['poses_y'][0], obs['poses_theta'][0], opp_pose, obs['linear_vels_x'][0], debug=False)
         
         opp_pose = obsDict2oppoArray(obs, 1)
         opp_best_traj = opp_planner.plan(obs['poses_x'][1], obs['poses_y'][1], obs['poses_theta'][1], opp_pose, obs['linear_vels_x'][1], debug=False)

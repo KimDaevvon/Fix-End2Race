@@ -1,0 +1,11 @@
+{
+  "mode": "multi_agent",
+  "ego_raceline": "raceline0",
+  "ego_idx": 145,
+  "opp_raceline": "raceline0",
+  "opp_idx": 175,
+  "speed_scale": 0.4,
+  "interval_idx": 30,
+  "simulation_time": 8.739999999999858,
+  "final_state": "overtaking"
+}

@@ -405,8 +405,8 @@ def get_obstacle_collision_with_v(traj, traj_clothoid, v_lattice, opp_poses, pre
 
         for ki in range(k):
             ego_v = v_lattice[i, ki]
-            if ego_v < 0.1:
-                ego_v = 0.1  # avoid division by zero
+            if ego_v < 1e-3:
+                ego_v = 1e-3  # avoid division by zero
 
             max_collision_cost = 0.0
 
