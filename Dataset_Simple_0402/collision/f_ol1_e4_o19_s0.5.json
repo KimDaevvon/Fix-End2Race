@@ -1,0 +1,11 @@
+{
+  "mode": "multi_agent",
+  "ego_raceline": "raceline1",
+  "ego_idx": 4,
+  "opp_raceline": "raceline1",
+  "opp_idx": 19,
+  "speed_scale": 0.5,
+  "interval_idx": 15,
+  "simulation_time": 2.949999999999981,
+  "final_state": "following"
+}

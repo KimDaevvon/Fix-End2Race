@@ -83,7 +83,7 @@ def evaluate_segment(model, device, noise_level, map_name, ego_idx, interval_idx
     params['opp_idx'] = opp_idx
     
     # Setup environment
-    env = gym.make("f110-v0", map=f"f1tenth_racetracks/{map_name}/{map_name}_map", map_ext=".png", num_agents=2, timestep=0.01, integrator=Integrator.RK4)
+    env = gym.make("f110-v0", map=f"f1tenth_racetracks/{map_name}/{map_name}_map", map_ext=".png", num_agents=2, timestep=0.01)
     
     # Add render callback for proper camera positioning and trajectory visualization
     if render:
@@ -225,7 +225,7 @@ def evaluate_segment(model, device, noise_level, map_name, ego_idx, interval_idx
         final_state = "overtaking" if ego_progress > opp_progress else "following"
         
         # Check collision
-        if np.any(obs['collisions']):
+        if np.any(obs["collisions"]):
             collision_occurred = True
             done = True
         
